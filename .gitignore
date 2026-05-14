@@ -1,23 +1,32 @@
-﻿.venv/
+
+
+# Generated patch/backups/cache
+
+# Keep generated run output out of Git, but include required 3D viewer vendor assets.
+
+# Local/private environment files
+.env
+
+# Python/runtime clutter
+.venv/
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.zip
 
+# Keep generated run output out of Git, but include required 3D viewer vendor assets.
 reports/*
 !reports/.gitkeep
+!reports/_vendor/
+!reports/_vendor/three.min.js
+!reports/_vendor/OrbitControls.js
 
+# Keep generated portfolio demo output out of Git.
 portfolio_demos/*
 !portfolio_demos/.gitkeep
+
 # Generated patch/backups/cache
 *.bak_*
 patch_*.py
 CLEAN_SAFE_PROJECT_BLOAT.py
-.venv/
-reports/runs/
-**/_previews/
-__pycache__/
-*.pyc
-*.bak*
-*.zip
