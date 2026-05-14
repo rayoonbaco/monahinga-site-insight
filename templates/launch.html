@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ app_name }} - Proof Preview</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css?v=20260514-prooflaunch1" />
+</head>
+<body class="adventure-body launch-body">
+  <main class="page-shell launch-shell">
+    <header class="hero proof-hero">
+      <div class="hero-overlay"></div>
+      <div class="hero-inner">
+        <p class="eyebrow">Proof-of-Work Preview</p>
+        <h1>Monahinga / Site Insight</h1>
+        <p class="hero-copy">AI terrain intelligence for turning a real place into visual evidence, candidate observations, and expert-review questions.</p>
+        <div class="hero-badges">
+          <span>8 terrain lenses</span>
+          <span>3D terrain</span>
+          <span>Candidate archaeology</span>
+          <span>Decision support</span>
+          <span>Expert review ready</span>
+        </div>
+        <div class="button-stack launch-actions">
+          <a class="btn btn-primary" href="/">Start a Terrain Review</a>
+          {% if recent_runs and recent_runs[0] %}<a class="btn btn-secondary" href="/runs/{{ recent_runs[0].run_id }}">Open Latest Run</a>{% endif %}
+        </div>
+      </div>
+    </header>
+
+    <section class="proof-grid">
+      <article class="proof-card">
+        <span class="lane-kicker">1 / Select the land</span>
+        <h2>The system starts with a real place.</h2>
+        <p>Draw a bounding box anywhere in the world and launch a terrain review run. This is not a text-only AI demo; it begins with geography.</p>
+      </article>
+      <article class="proof-card">
+        <span class="lane-kicker">2 / Read the terrain</span>
+        <h2>Elevation becomes evidence.</h2>
+        <p>3D terrain and derivative layers help reveal ridges, depressions, edges, local relief, and landform structure.</p>
+      </article>
+      <article class="proof-card">
+        <span class="lane-kicker">3 / Compare the lenses</span>
+        <h2>One landscape. Multiple ways to see structure.</h2>
+        <p>Hillshade, slope, LRM, LRM edges, openness, SVF, discovery, and archaeology views are treated as an evidence stack, not random buttons.</p>
+      </article>
+      <article class="proof-card">
+        <span class="lane-kicker">4 / Support the decision</span>
+        <h2>Candidate features, not certainty.</h2>
+        <p>The system ranks observations, exposes contradictions, and prepares better questions for human expert review and field verification.</p>
+      </article>
+    </section>
+
+    <section class="card launch-thesis-card">
+      <p class="eyebrow">Launch Thesis</p>
+      <h2>Information used to be scarce. Now the advantage is turning abundant information into usable intelligence.</h2>
+      <p>Monahinga is a working proof of that idea: selected land becomes an intelligence surface, terrain becomes visual evidence, and AI role specialists help synthesize complex signals into action-ready review material.</p>
+    </section>
+
+    <section class="grid-two">
+      <section class="card">
+        <h2>What this preview claims</h2>
+        <ul class="styled-list">
+          <li>It can create a terrain-review workflow from a selected place.</li>
+          <li>It can visualize multiple terrain derivatives and 3D context.</li>
+          <li>It can organize candidate observations into cautious decision-support language.</li>
+          <li>It can prepare better review questions for archaeologists, planners, and domain experts.</li>
+        </ul>
+      </section>
+      <section class="card">
+        <h2>What it does not claim yet</h2>
+        <ul class="styled-list">
+          <li>It does not confirm archaeological sites from terrain alone.</li>
+          <li>It does not replace fieldwork, licensed experts, or local review.</li>
+          <li>It does not pretend every layer is equally reliable in every geography.</li>
+          <li>It is a proof-of-direction preview, not a finished commercial product.</li>
+        </ul>
+      </section>
+    </section>
+
+    <section class="card">
+      <h2>Best public demo path</h2>
+      <ol class="styled-list">
+        <li>Open the launch preview and explain the thesis.</li>
+        <li>Draw or open a real area on the map.</li>
+        <li>Show the 3D terrain and derivative layer grid.</li>
+        <li>Open the archaeology synthesis panel and emphasize candidate-feature language.</li>
+        <li>Close with the larger operating model: terrain intelligence can support archaeology, land development, insurance, and other decision domains.</li>
+      </ol>
+    </section>
+  </main>
+</body>
+</html>

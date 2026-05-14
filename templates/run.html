@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ app_name }} - {{ manifest.run_name }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css?v=20260514-prooflaunch1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+</head>
+<body class="adventure-body">
+  <main class="page-shell">
+    <header class="hero hero-run"><div class="hero-overlay"></div><div class="hero-inner"><p class="eyebrow">Survey Run</p><h1>{{ manifest.run_name }}</h1><p class="hero-copy">{{ intelligence.narrative }}</p><div class="hero-badges"><span>Review {{ intelligence.discovery_score }}</span><span>Terrain {{ intelligence.terrain_signal_score }}</span><span>Flow {{ intelligence.travel_corridor_strength }}</span><span>Archaeology {{ intelligence.archaeological_signal_score }}</span></div></div></header>
+    <section class="card">
+      <div class="viewer-header"><div><h2>Terrain Viewer</h2><p class="muted">This page presents the working proof: selected terrain, 3D context, derivative layers, candidate observations, and review-ready decision support.</p></div><div class="button-stack"><a class="btn btn-secondary" href="/">Home / New Survey</a><a class="btn btn-secondary" href="/launch">Launch Preview</a><a class="btn btn-secondary" href="/brand/{{ run_id }}">Story Lab</a><a class="btn btn-secondary" href="/runs/{{ run_id }}/download">Download Run ZIP</a></div></div>
+      <div class="hero-badges" style="margin-bottom:16px"><span>Terrain {{ terrain_qc.terrain_quality or manifest.terrain_quality or 'unknown' }}</span><span>Confidence {{ terrain_qc.terrain_confidence or manifest.terrain_confidence or 0 }}</span><span>Valid {{ terrain_qc.valid_ratio or 0 }}</span><span>3D Exaggeration {{ terrain_qc.exaggeration_recommended or 1.0 }}</span><span>Inspection {{ artifact_truth.inspection_mode or manifest.inspection_mode or 'balanced_detail' }}</span><span>Surface Trust {{ manifest.surface_trust or artifact_truth.surface_trust or 'mixed_surface' }}</span></div>
+      <div class="insight-banner"><div><strong>Viewer posture:</strong> {{ manifest.surface_trust_note or 'Treat this surface as contextual terrain evidence, not automatic proof.' }}</div><div><strong>Layer count:</strong> {{ layer_names|length }}</div><div><strong>Audit:</strong> {{ (artifact_audit.status if artifact_audit else 'not recorded') }}</div></div>
+      {% if terrain_qc.warnings %}<div class="card" style="margin-bottom:18px; background:rgba(255,255,255,.04)"><h3>Terrain Diagnostics</h3><ul class="styled-list">{% for item in terrain_qc.warnings %}<li>{{ item }}</li>{% endfor %}</ul></div>{% endif %}
+      <div class="terrain-product-strip">
+        <div><span>Product Mode</span><strong>Scientific Terrain Command</strong></div>
+        <div><span>Best First View</span><strong>Terrain Texture + 3D</strong></div>
+        <div><span>Field Rule</span><strong>Signal, not proof</strong></div>
+      </div>
+      <div class="morning-command-center" data-patch="morning-command-center-v1">
+        <div class="morning-command-header">
+          <div>
+            <p class="eyebrow">Morning Path</p>
+            <h3>Terrain Improvement Command Center</h3>
+            <p class="muted">Use this panel tomorrow to decide whether the next move is visual tuning, speed, DEM source quality, or archaeology validation.</p>
+          </div>
+          <div class="morning-scorecard">
+            <span>Speed protected</span>
+            <strong>{{ artifact_truth.viewer_source_grid or manifest.viewer_source_grid or manifest.browser_grid or 'check run' }}</strong>
+            <small>viewer grid</small>
+          </div>
+        </div>
+        <div class="morning-lanes">
+          <div class="morning-lane priority-now">
+            <span class="lane-kicker">Next best pass</span>
+            <strong>Source Quality + Cache Discipline</strong>
+            <p>Keep today’s 448 fast viewer, then add clearer source status and caching rules before chasing more visual drama.</p>
+          </div>
+          <div class="morning-lane">
+            <span class="lane-kicker">Visual status</span>
+            <strong>Scientific Balanced Terrain</strong>
+            <p>Current goal is readable midtones, preserved mountain relief, and reduced ridge glare. Do not darken the texture again.</p>
+          </div>
+          <div class="morning-lane">
+            <span class="lane-kicker">Performance status</span>
+            <strong>Viewer payload is the protected win</strong>
+            <p>Keep the lighter viewer JSON/mesh path. Only increase mesh density after a side-by-side test proves the benefit.</p>
+          </div>
+          <div class="morning-lane caution-lane">
+            <span class="lane-kicker">Science caution</span>
+            <strong>Signal, not proof</strong>
+            <p>Discovery and Archaeology layers are candidate-feature signals. Field verification remains required.</p>
+          </div>
+        </div>
+        <div class="morning-checklist">
+          <strong>Tomorrow’s precise order:</strong>
+          <ol>
+            <li>Run the same BBox twice and compare first-run vs repeat-run speed.</li>
+            <li>Screenshot Terrain Texture, Hillshade, LRM_Edges, and Discovery from the same camera angle.</li>
+            <li>If speed is acceptable, improve DEM/source routing next. If not, profile PNG export and layer JSON generation first.</li>
+            <li>Only after source routing is clear, test Copernicus as worldview context; do not replace USGS/3DEP for fine archaeology where better bare-earth data exists.</li>
+          </ol>
+        </div>
+      </div>
+      <div class="viewer-toolbar professional-toolbar" style="margin-bottom:12px"><div class="viewer-mode-group"><button type="button" class="btn btn-primary viewer-mode-btn active" data-mode="three">3D Command View</button><button type="button" class="btn btn-secondary viewer-mode-btn" data-mode="raster">Scientific Raster Review</button></div><div class="layer-buttons"><button type="button" class="btn btn-secondary viewer-layer-btn" data-layer="elevation">Elevation</button><button type="button" class="btn btn-primary viewer-layer-btn active" data-layer="terrain_texture">Terrain Composite</button><button type="button" class="btn btn-secondary viewer-layer-btn" data-layer="hillshade">Hillshade</button><button type="button" class="btn btn-secondary viewer-layer-btn" data-layer="slope">Slope</button><button type="button" class="btn btn-secondary viewer-layer-btn" data-layer="local_relief">LRM</button><button type="button" class="btn btn-secondary viewer-layer-btn" data-layer="openness">Openness</button><button type="button" class="btn btn-secondary viewer-layer-btn" data-layer="srv">Sky View</button><button type="button" class="btn btn-secondary viewer-layer-btn" data-layer="archaeology">Arch Signal</button><button type="button" class="btn btn-secondary viewer-layer-btn" data-layer="discovery">Discovery</button></div></div>
+      <div class="viewer-legend scientific-legend"><strong id="viewer-layer-name">Terrain Texture Composite</strong><span class="muted" id="viewer-layer-description">Professional terrain composite for fast field interpretation.</span></div>
+      <div id="three-view-panel" class="viewer-panel active">
+        {% if guarded_3d %}
+        <div class="card" style="margin-bottom:14px; background:rgba(255,255,255,.04)">
+          <h3 style="margin-top:0">Guarded high-detail 3D mode</h3>
+          <p class="muted">This run is heavy enough that the page now protects itself. Start with the separate viewer, or load the embedded viewer only when you want it.</p>
+          <div class="button-stack">
+            <a class="btn btn-primary" href="/reports/runs/{{ run_id }}/viewer3d.html?v={{ run_id }}&layer=terrain_texture" target="_blank" rel="noopener">Open Separate 3D Viewer</a>
+            <button type="button" class="btn btn-secondary" id="load-embedded-viewer-btn" data-src="/reports/runs/{{ run_id }}/viewer3d.html?v={{ run_id }}&layer=terrain_texture&embed=1">Load Embedded Viewer</button>
+          </div>
+          <p class="small-note">Guarded mode keeps the run page stable while the separate viewer remains the richer terrain experience.</p>
+        </div>
+        <div id="embedded-viewer-shell" class="thumb-card" style="padding:0; overflow:hidden; min-height:320px; display:grid; place-items:center; background:rgba(255,255,255,.03)">
+          <img loading="eager" decoding="async" fetchpriority="high" src="/runs/{{ run_id }}/preview/Terrain_Texture.png?width=1200&v={{ run_id }}" alt="Terrain texture preview" style="display:block; width:100%; height:auto; max-height:420px; object-fit:cover" />
+        </div>
+        {% else %}
+        <div class="card" style="margin-bottom:14px; background:rgba(255,255,255,.04)">
+          <h3 style="margin-top:0">Professional 3D terrain command preview</h3>
+          <p class="muted">The run page stays fast first. Open the separate viewer for the strongest terrain read, or load the embedded viewer only when needed.</p>
+          <div class="button-stack">
+            <a class="btn btn-primary" href="/reports/runs/{{ run_id }}/viewer3d.html?v={{ run_id }}&layer=terrain_texture" target="_blank" rel="noopener">Open Separate 3D Viewer</a>
+            <button type="button" class="btn btn-secondary" id="load-embedded-viewer-btn" data-src="/reports/runs/{{ run_id }}/viewer3d.html?v={{ run_id }}&layer=terrain_texture&embed=1">Load Embedded Viewer</button>
+          </div>
+          <p class="small-note">This protects speed while keeping the high-impact 3D view one click away.</p>
+        </div>
+        <div id="embedded-viewer-shell" class="thumb-card" style="padding:0; overflow:hidden; min-height:320px; display:grid; place-items:center; background:rgba(255,255,255,.03)">
+          <img loading="eager" decoding="async" fetchpriority="high" src="/runs/{{ run_id }}/preview/Terrain_Texture.png?width=1200&v={{ run_id }}" alt="Terrain texture preview" style="display:block; width:100%; height:auto; max-height:420px; object-fit:cover" />
+        </div>
+        {% endif %}
+      </div>
+      <div id="raster-view-panel" class="viewer-panel"><canvas id="terrain-layer-canvas" class="terrain-canvas terrain-canvas-large" data-run-id="{{ run_id }}" width="1200" height="760"></canvas></div>
+      <script>
+        (function(){
+          const btn = document.getElementById('load-embedded-viewer-btn');
+          if (!btn) return;
+          btn.addEventListener('click', function(){
+            const shell = document.getElementById('embedded-viewer-shell');
+            if (!shell) return;
+            const iframe = document.createElement('iframe');
+            iframe.title = '3D terrain viewer';
+            iframe.className = 'three-terrain-container';
+            iframe.loading = 'lazy';
+            iframe.src = btn.dataset.src;
+            shell.innerHTML = '';
+            shell.appendChild(iframe);
+            btn.disabled = true;
+            btn.textContent = 'Embedded Viewer Loading…';
+          });
+        })();
+      </script>
+<div class="section-intro"><div><h3>Derivative Review</h3><p class="muted">These are the written PNG review products for this run. If a layer is missing here but still appears in the raster viewer, the run likely has live layer JSON but incomplete derivative publication.</p></div><div class="hero-badges compact-badges"><span>Verified {{ artifact_audit.thumbnail_verified|length if artifact_audit and artifact_audit.thumbnail_verified else thumb_files|length }}</span><span>Missing {{ artifact_audit.thumbnail_missing|length if artifact_audit and artifact_audit.thumbnail_missing else missing_thumbs|length }}</span></div></div>
+      <div class="thumb-grid">{% for label, filename in thumb_files %}<figure class="thumb-card"><img loading="lazy" decoding="async" src="/runs/{{ run_id }}/preview/{{ filename }}?width=720&v={{ run_id }}" alt="{{ label }}" /><figcaption>{{ label }} <a class="full-res-link" href="/reports/runs/{{ run_id }}/{{ filename }}" target="_blank">full-res</a></figcaption></figure>{% endfor %}</div>{% if not thumb_files %}<p class="small-note">No derivative thumbnails were verified for this run yet.</p>{% endif %}{% if missing_thumbs %}<p class="small-note">Unavailable in this run: {% for label, filename in missing_thumbs %}{{ label }}{% if not loop.last %}, {% endif %}{% endfor %}.</p>{% endif %}
+
+      <!-- speed-audit-card-v1 -->
+      <div class="speed-audit-card">
+        <div>
+          <span class="lane-kicker">Speed Audit</span>
+          <strong>{{ performance_audit.status|title if performance_audit else 'Unknown' }} run weight</strong>
+          <p>{{ performance_audit.recommendation if performance_audit else 'Run a fresh analysis to calculate weight.' }}</p>
+        </div>
+        <div class="speed-audit-metrics">
+          <span><strong>{{ performance_audit.total_png_mb if performance_audit else 0 }} MB</strong><small>PNG previews</small></span>
+          <span><strong>{{ performance_audit.direct_total_mb if performance_audit else 0 }} MB</strong><small>direct run files</small></span>
+          <span><strong>{{ performance_audit.png_count if performance_audit else 0 }}</strong><small>PNG files</small></span>
+          <span><strong>{{ performance_audit.largest_file.name if performance_audit and performance_audit.largest_file else 'none' }}</strong><small>largest file · {{ performance_audit.largest_file.mb if performance_audit and performance_audit.largest_file else 0 }} MB</small></span>
+        </div>
+      </div>
+    </section>
+    <section class="grid-two"><section class="card"><h2>Pin Markers</h2><p class="muted">Pins remain active. You can place named observation, anomaly, access, trench-check, and general note markers against the exact run area.</p><div id="run-pin-map" class="bbox-map" data-run-id="{{ run_id }}" data-bbox="{{ manifest.bbox }}"></div><form method="post" action="/api/runs/{{ run_id }}/pins" class="form-grid" style="margin-top:14px"><label>Pin Label<input type="text" name="label" placeholder="North saddle observation" required /></label><label>Pin Type<select name="pin_type"><option value="observation_point">Observation Point</option><option value="candidate_site">Candidate Site</option><option value="anomaly">Anomaly</option><option value="access">Access</option><option value="test_area">Test Area</option><option value="archaeology">Archaeology</option><option value="note">General Note</option></select></label><label>Latitude<input type="text" id="pin-lat" name="lat" placeholder="Click the map" required /></label><label>Longitude<input type="text" id="pin-lon" name="lon" placeholder="Click the map" required /></label><label class="full">Notes<textarea name="notes" rows="3" placeholder="Why this spot matters"></textarea></label><div class="full form-actions"><button type="submit" class="btn btn-primary">Save Pin</button></div></form><p class="small-note">Current saved pins: {{ pins_summary.count or 0 }}</p></section><section class="card"><h2>Field Attachment Status</h2><p class="muted">The terrain engine is active now. This build does not yet ingest field photos, drone media, or notebook attachments, and it says so plainly.</p><ul class="styled-list"><li><strong>Pins:</strong> active now</li><li><strong>Run-level terrain review:</strong> active now</li><li><strong>Field photo / video ingestion:</strong> not implemented in this ZIP yet</li><li><strong>Automatic media interpretation:</strong> not implemented in this ZIP yet</li><li><strong>Best next integration path:</strong> attach media or notes per pin, extract key frames if needed, then compare them against terrain context</li></ul>{% if intelligence.future_hooks %}<h3>Future Hooks</h3><ul class="styled-list">{% for key, value in intelligence.future_hooks.items() %}<li><strong>{{ key.replace('_', ' ').title() }}:</strong> {{ value }}</li>{% endfor %}</ul>{% endif %}</section></section>
+
+    <section class="card archaeology-synthesis-card">
+      <div class="viewer-header">
+        <div>
+          <p class="eyebrow">Challenge Mode</p>
+          <h2>Archaeology Layer Synthesis Command Team</h2>
+          <p class="muted">This panel turns the eight terrain layers into cautious decision support: layer agreement, contradiction, false-positive pressure, source confidence, and field-verification next steps.</p>
+        </div>
+        <div class="morning-scorecard">
+          <span>Combined confidence</span>
+          <strong>{{ archaeology_synthesis.combined_confidence or 0 }}</strong>
+          <small>{{ archaeology_synthesis.decision_status or 'preliminary screen' }}</small>
+        </div>
+      </div>
+      <div class="insight-banner">
+        <div><strong>Terrain Quality Chief:</strong> {{ archaeology_synthesis.terrain_quality_chief.decision if archaeology_synthesis.terrain_quality_chief else 'Run a new analysis to generate synthesis.' }}</div>
+        <div><strong>Source Mesh/Fallback:</strong> {{ archaeology_synthesis.source_mesh_fallback_architect.selected_provider if archaeology_synthesis.source_mesh_fallback_architect else manifest.provider }}</div>
+        <div><strong>Candidate Cards:</strong> {{ archaeology_synthesis.candidate_count or 0 }}</div>
+      </div>
+      {% if archaeology_synthesis.command_summary %}<p class="small-note">{{ archaeology_synthesis.command_summary }}</p>{% endif %}
+      <div class="morning-lanes">
+        {% for move in archaeology_synthesis.unique_ai_moves or [] %}
+        <div class="morning-lane"><span class="lane-kicker">Unique AI move</span><strong>{{ move.split(':')[0] }}</strong><p>{{ move }}</p></div>
+        {% endfor %}
+      </div>
+      {% if archaeology_synthesis.candidate_cards %}
+      <h3>Ranked Candidate Feature Cards</h3>
+      <div class="run-list synthesis-candidate-list">
+        {% for candidate in archaeology_synthesis.candidate_cards[:5] %}
+        <div class="run-row synthesis-candidate-row">
+          <div>
+            <strong>#{{ candidate.rank }} · {{ candidate.candidate_name }}</strong>
+            <div class="muted">Confidence {{ candidate.confidence }} · Agreement {{ candidate.layer_agreement }} · Contradiction {{ candidate.contradiction_score }} · {{ candidate.decision_status }}</div>
+            <p class="small-note"><strong>Observed:</strong> {{ candidate.observed_pattern }}</p>
+            <p class="small-note"><strong>False-positive duel:</strong> {{ (candidate.false_positive_risks or [])|join('; ') }}</p>
+            <p class="small-note"><strong>Field task:</strong> {{ candidate.field_verification_task }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="muted">No synthesis candidate cards yet. Launch a fresh run after applying this patch.</p>
+      {% endif %}
+      <div class="button-stack" style="margin-top:14px">
+        <a class="btn btn-secondary" href="/reports/runs/{{ run_id }}/archaeology_synthesis.json" target="_blank">Open archaeology_synthesis.json</a>
+        <a class="btn btn-secondary" href="/reports/runs/{{ run_id }}/archaeology_features.geojson" target="_blank">Open feature export</a>
+      </div>
+    </section>
+
+    <section class="grid-two"><section class="card"><h2>Terrain Summary</h2><div class="details-grid"><div><span>Elevation Range</span><strong>{{ terrain.elevation_range }}</strong></div><div><span>Mean Elevation</span><strong>{{ terrain.mean_elevation }}</strong></div><div><span>Mean Slope</span><strong>{{ terrain.mean_slope }}</strong></div><div><span>Local Relief</span><strong>{{ terrain.mean_local_relief }}</strong></div><div><span>Ridge Ratio</span><strong>{{ terrain.ridge_ratio }}</strong></div><div><span>Valley Ratio</span><strong>{{ terrain.valley_ratio }}</strong></div><div><span>Outlier Pixels</span><strong>{{ terrain_qc.outlier_pixels or 0 }}</strong></div><div><span>Spike Pixels</span><strong>{{ terrain_qc.spike_pixels or 0 }}</strong></div><div><span>Terrain Objects</span><strong>{{ terrain_qc.terrain_object_count or 0 }}</strong></div><div><span>Graph Nodes</span><strong>{{ terrain_qc.graph_node_count or 0 }}</strong></div><div><span>Qualification</span><strong>{{ terrain_qc.qualification_status or 'unknown' }}</strong></div><div><span>Public Readiness</span><strong>{{ (terrain_qc.rendering_policy.public_readiness if terrain_qc.rendering_policy else 'unknown') }}</strong></div></div></section><section class="card"><h2>Review Takeaways</h2><ul class="styled-list">{% for item in intelligence.top_takeaways %}<li>{{ item }}</li>{% endfor %}</ul><h3>Primary Terrain Flow Lines</h3><ul class="styled-list">{% for route in intelligence.primary_routes %}<li>{{ route }}</li>{% endfor %}</ul></section></section>
+    <section class="grid-two"><section class="card"><h2>Source Comparison</h2><div class="details-grid"><div><span>Chosen Source</span><strong>{{ source_arbitration.selected_provider or manifest.provider }}</strong></div><div><span>Candidates Checked</span><strong>{{ source_arbitration.candidate_count or 1 }}</strong></div><div><span>Chosen Score</span><strong>{{ source_arbitration.selected_score or terrain_qc.terrain_confidence or 0 }}</strong></div><div><span>Selection Notes</span><strong>{{ (source_arbitration.selection_reason or [])|length }}</strong></div></div>{% if source_arbitration.selection_reason %}<ul class="styled-list">{% for item in source_arbitration.selection_reason %}<li>{{ item }}</li>{% endfor %}</ul>{% endif %}</section><section class="card"><h2>Candidate Sources</h2><div class="run-list">{% for candidate in source_arbitration.candidates or [] %}<div class="run-row"><div><strong>{{ candidate.provider }}</strong><div class="muted">Score {{ candidate.arbitration_score }} · Confidence {{ candidate.qc.terrain_confidence }} · Range {{ candidate.qc.raw_range }}</div></div></div>{% endfor %}</div></section></section>
+    <section class="grid-two"><section class="card"><h2>Structured Outputs</h2><div class="run-list"><a class="run-row" href="/reports/runs/{{ run_id }}/archaeology_features.geojson" target="_blank"><div><strong>archaeology_features.geojson</strong><div class="muted">Candidate archaeology feature export placeholder</div></div></a><a class="run-row" href="/reports/runs/{{ run_id }}/pam_probability.json" target="_blank"><div><strong>pam_probability.json</strong><div class="muted">Legacy filename now carrying terrain-flow summary values</div></div></a><a class="run-row" href="/reports/runs/{{ run_id }}/routes.geojson" target="_blank"><div><strong>routes.geojson</strong><div class="muted">Route export placeholder</div></div></a><a class="run-row" href="/reports/runs/{{ run_id }}/intelligence_summary.json" target="_blank"><div><strong>intelligence_summary.json</strong><div class="muted">Combined terrain review output</div></div></a><a class="run-row" href="/reports/runs/{{ run_id }}/terrain_objects.json" target="_blank"><div><strong>terrain_objects.json</strong><div class="muted">Extracted terrain object anchors</div></div></a><a class="run-row" href="/reports/runs/{{ run_id }}/terrain_graph.json" target="_blank"><div><strong>terrain_graph.json</strong><div class="muted">Local terrain graph</div></div></a><a class="run-row" href="/reports/runs/{{ run_id }}/source_arbitration.json" target="_blank"><div><strong>source_arbitration.json</strong><div class="muted">Compared source candidates and selected the best surface</div></div></a><a class="run-row" href="/reports/runs/{{ run_id }}/conditioning_summary.txt" target="_blank"><div><strong>conditioning_summary.txt</strong><div class="muted">Plain-language terrain conditioning notes</div></div></a></div></section><section class="card"><h2>Run Controls</h2><div class="button-stack"><a class="btn btn-secondary" href="/">Home / New Survey</a><a class="btn btn-secondary" href="/brand/{{ run_id }}">Open Story Lab</a><a class="btn btn-secondary" href="/runs/{{ run_id }}/download">Download Run ZIP</a></div><div class="meta-block"><p><strong>Run ID:</strong> {{ run_id }}</p><p><strong>Profile:</strong> {{ manifest.persona }}</p><p><strong>Provider:</strong> {{ manifest.provider }}</p><p><strong>BBox:</strong> {{ manifest.bbox }}</p></div></section></section>
+    <section class="card"><h2>Conditioning Summary</h2><pre class="pre">{{ conditioning_summary }}</pre></section>
+    <section class="grid-two"><section class="card"><h2>Artifact Truth</h2><div class="details-grid"><div><span>Artifact Stage</span><strong>{{ artifact_truth.artifact_stage or manifest.status or 'unknown' }}</strong></div><div><span>Artifact Authority</span><strong>{{ artifact_truth.artifact_authority or 'not recorded' }}</strong></div><div><span>Analysis Grid</span><strong>{{ artifact_truth.analysis_grid or manifest.browser_grid or 'unknown' }} x {{ artifact_truth.analysis_cols or artifact_truth.analysis_grid or manifest.browser_grid or 'unknown' }}</strong></div><div><span>Viewer Grid</span><strong>{{ artifact_truth.browser_grid_actual or manifest.browser_grid or 'unknown' }} x {{ artifact_truth.browser_grid_actual or manifest.browser_grid or 'unknown' }}</strong></div><div><span>Geometry Mode</span><strong>{{ artifact_truth.geometry_mode or 'unknown' }}</strong></div><div><span>Terrain Class</span><strong>{{ artifact_truth.terrain_class or manifest.terrain_class or 'unknown' }}</strong></div></div><p class="small-note">{{ artifact_truth.final_export_note or 'This run does not yet record whether the viewer export is preview-only or final.' }}</p></section><section class="card"><h2>Artifact Integrity Audit</h2><div class="details-grid"><div><span>Status</span><strong>{{ artifact_audit.status or manifest.artifact_audit_summary.status or 'not recorded' }}</strong></div><div><span>Expected Files</span><strong>{{ artifact_audit.expected_count or manifest.artifact_audit_summary.expected_count or 0 }}</strong></div><div><span>Verified Files</span><strong>{{ artifact_audit.verified_count or manifest.artifact_audit_summary.verified_count or 0 }}</strong></div><div><span>Missing Files</span><strong>{{ artifact_audit.missing_count or manifest.artifact_audit_summary.missing_count or 0 }}</strong></div><div><span>Verified Thumbnails</span><strong>{{ artifact_audit.thumbnail_verified|length if artifact_audit and artifact_audit.thumbnail_verified else manifest.artifact_audit_summary.thumbnail_verified_count or 0 }}</strong></div><div><span>Missing Thumbnails</span><strong>{{ artifact_audit.thumbnail_missing|length if artifact_audit and artifact_audit.thumbnail_missing else manifest.artifact_audit_summary.thumbnail_missing_count or 0 }}</strong></div></div><p class="small-note">The run is now meant to stay in processing until the final viewer and derivative files are actually written and verified on disk.</p></section></section>
+    <section class="card"><h2>Manifest</h2><pre class="pre" id="manifest-pre">Loading...</pre></section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script defer src="/static/app.js?v=20260514-prooflaunch1"></script>
+  <script>fetch("/api/run/{{ run_id }}", { cache: "no-store" }).then(r => r.json()).then(j => { document.getElementById("manifest-pre").textContent = JSON.stringify(j, null, 2); }).catch(e => { document.getElementById("manifest-pre").textContent = "Failed to load manifest: " + e.message; });</script>
+</body>
+</html>

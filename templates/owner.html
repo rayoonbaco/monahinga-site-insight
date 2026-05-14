@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ app_name }} - Owner Console</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body class="adventure-body">
+  <main class="page-shell narrow">
+    <section class="card">
+      <h1>Owner Console</h1>
+      <p class="muted">Current credit balance: {{ credits_balance }}</p>
+      <form method="post" action="/owner/add-credits" class="inline-form">
+        <input type="text" name="amount" placeholder="Add credits" />
+        <button class="btn btn-primary" type="submit">Add Credits</button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Global DEM Provider</h2>
+      <p class="muted">U.S. areas use USGS automatically. Non-U.S. areas use Copernicus DEM through the public AWS Open Data mirror, so no Copernicus account or OAuth setup is required for elevation access in this build.</p>
+      <p class="muted">AWS CLI status: {% if provider_ready %}<strong>Ready</strong>{% else %}<strong>Not detected</strong>{% endif %}</p>
+      <form method="post" action="/owner/save-provider" class="form-grid">
+        <label>
+          Copernicus Mode
+          <input type="text" value="AWS public DEM mirror" readonly />
+        </label>
+        <label>
+          AWS CLI
+          <input type="text" value="{% if provider_settings.copernicus.aws_cli_ready %}Detected{% else %}Install AWS CLI on this machine{% endif %}" readonly />
+        </label>
+        <div class="full form-actions">
+          <button class="btn btn-secondary" type="submit">Acknowledge</button>
+          <a class="btn btn-primary" href="/">Back Home</a>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Recent Runs</h2>
+      {% if runs %}
+      <div class="run-list">
+        {% for run in runs %}
+        <a class="run-row" href="/runs/{{ run.run_id }}">
+          <div>
+            <strong>{{ run.run_name }}</strong>
+            <div class="muted">{{ run.run_id }}</div>
+          </div>
+          <div class="score-pill">{{ run.discovery_score }}</div>
+        </a>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p>No runs found.</p>
+      {% endif %}
+    </section>
+  </main>
+</body>
+</html>

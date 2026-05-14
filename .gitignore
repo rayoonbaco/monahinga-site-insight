@@ -1,0 +1,23 @@
+﻿.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.zip
+
+reports/*
+!reports/.gitkeep
+
+portfolio_demos/*
+!portfolio_demos/.gitkeep
+# Generated patch/backups/cache
+*.bak_*
+patch_*.py
+CLEAN_SAFE_PROJECT_BLOAT.py
+.venv/
+reports/runs/
+**/_previews/
+__pycache__/
+*.pyc
+*.bak*
+*.zip

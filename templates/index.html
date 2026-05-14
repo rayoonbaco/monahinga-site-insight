@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ app_name }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css?v=20260514-prooflaunch1" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" crossorigin="" />
+</head>
+<body class="adventure-body">
+  <header class="hero hero-home">
+    <div class="hero-overlay"></div>
+    <div class="hero-inner">
+      <p class="eyebrow">AI Terrain Intelligence Preview</p>
+      <h1>{{ app_name }}</h1>
+      <p class="hero-copy">Draw a real place on the map and turn terrain into visual evidence, candidate observations, and expert-review questions.</p>
+      <div class="hero-badges">
+        <span>Real place input</span><span>8 terrain lenses</span><span>3D terrain</span><span>Candidate archaeology</span><span>Decision support</span>
+      </div>
+    </div>
+  </header>
+  <main class="page-shell">
+    <section class="card">
+      <h2>1. Draw Your Area</h2>
+      <p class="muted">Use the map tools to draw one rectangle anywhere in the world. The bounding box field below will fill automatically.</p>
+      <div class="map-toolbar">
+        <button type="button" class="btn btn-secondary" id="fit-world-btn">World View</button>
+        <button type="button" class="btn btn-secondary" id="clear-bbox-btn">Clear Box</button>
+        <span class="small-note">Tip: click the rectangle tool on the map, then drag your study area.</span>
+      </div>
+      <div id="bbox-map" class="bbox-map"></div>
+      <div class="bbox-readout"><strong>Current bbox:</strong> <code id="bbox-preview">None selected yet</code></div>
+    </section>
+    <section class="card">
+      <h2>2. Start a New Survey Run</h2>
+      {% if message %}<div class="message">{{ message }}</div>{% endif %}
+      <form method="post" action="/analyze" class="form-grid" id="analysis-form">
+        <label>Run Name<input type="text" name="run_name" placeholder="Monahinga Ridge Survey" /></label>
+        <input type="hidden" name="persona" value="archaeologist" />
+        <label class="full">Bounding Box<input type="text" id="bbox-input" name="bbox" placeholder="-78.820, 42.880, -78.760, 42.930" required /></label>
+        <label class="full">Notes<textarea name="notes" rows="4" placeholder="What terrain clues or archaeology questions should this run help you review?"></textarea></label>
+        <label class="inline-check full"><input type="checkbox" name="consume_credit" value="1" />Consume 1 credit for this survey run</label>
+        <div class="full form-actions"><button type="submit" class="btn btn-primary">Launch Terrain Review</button><a class="btn btn-secondary" href="/launch">Launch Preview</a><a class="btn btn-secondary" href="/owner">Owner Console</a></div>
+      </form>
+      <p class="small-note">Credit balance: {{ credits_balance }}</p>
+      <p class="small-note">Provider status: {% if provider_ready %}<strong>Worldwide DEM ready (USGS + Copernicus)</strong>{% else %}<strong>USGS ready; Copernicus fallback needs setup</strong>{% endif %}</p>
+      <p class="small-note">You can either draw the box on the map or type it manually as: <code>min_lon, min_lat, max_lon, max_lat</code></p>
+    </section>
+    <!-- proof-launch-home-card -->
+    <section class="card proof-home-card">
+      <p class="eyebrow">Proof-of-work preview</p>
+      <h2>Terrain intelligence, not just a map.</h2>
+      <p class="muted">Monahinga turns selected land into an evidence surface: 3D terrain, eight terrain lenses, candidate-feature synthesis, and careful decision-support language for expert review.</p>
+      <div class="proof-mini-grid">
+        <span><strong>8</strong><small>terrain lenses</small></span>
+        <span><strong>3D</strong><small>terrain viewer</small></span>
+        <span><strong>AI</strong><small>specialist synthesis</small></span>
+        <span><strong>Review</strong><small>candidate, not certainty</small></span>
+      </div>
+      <div class="button-stack"><a class="btn btn-primary" href="/launch">Open Proof Preview</a></div>
+    </section>
+    <section class="card">
+      <h2>Recent Survey Runs</h2>
+      {% if recent_runs %}<div class="run-list">{% for run in recent_runs %}<a class="run-row" href="/runs/{{ run.run_id }}"><div><strong>{{ run.run_name }}</strong><div class="muted">{{ run.run_id }}</div></div><div class="score-pill">Review {{ run.discovery_score }}</div></a>{% endfor %}</div>{% else %}<p>No runs yet.</p>{% endif %}
+    </section>
+  </main>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js" crossorigin=""></script>
+  <script defer src="/static/app.js?v=20260514-prooflaunch1"></script>
+</body>
+</html>

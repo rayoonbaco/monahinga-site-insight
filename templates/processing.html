@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ app_name }} - Processing {{ manifest.run_name }}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  {% if manifest.status == "processing" %}<meta http-equiv="refresh" content="2">{% endif %}
+  <link rel="stylesheet" href="/static/style.css?v=20260513-mapcalm1" />
+</head>
+<body class="adventure-body">
+  <main class="page-shell">
+    <section class="card" style="max-width:860px;margin:40px auto;">
+      <h1 style="margin-top:0;">{{ manifest.run_name }}</h1>
+      {% if manifest.status == "processing" %}
+      <p class="hero-copy">Your run page is live already. The terrain engine is building the full result in the background so you get an immediate first result instead of waiting on a blank browser page.</p>
+      <div class="hero-badges" style="margin-bottom:16px;">
+        <span>Status processing</span>
+        <span>Run {{ run_id }}</span>
+      </div>
+      <p class="muted">This page refreshes itself every 2 seconds. When the run is ready, it will switch to the full terrain review page automatically.</p>
+      {% else %}
+      <p class="hero-copy">This run stopped with an error before the full terrain package finished.</p>
+      <div class="hero-badges" style="margin-bottom:16px;">
+        <span>Status error</span>
+        <span>Run {{ run_id }}</span>
+      </div>
+      <pre class="pre">{{ manifest.error_message }}</pre>
+      {% endif %}
+      <div class="button-stack">
+        <a class="btn btn-secondary" href="/">Back Home</a>
+        {% if manifest.status == "processing" %}
+        <a class="btn btn-secondary" href="/runs/{{ run_id }}">Refresh Now</a>
+        {% endif %}
+      </div>
+    </section>
+  </main>
+</body>
+</html>

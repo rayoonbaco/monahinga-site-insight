@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>{{ app_name }} - Story Lab</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="/static/style.css?v=20260513-mapcalm1" />
+</head>
+<body class="adventure-body">
+  <header class="hero hero-brand"><div class="hero-overlay"></div><div class="hero-inner"><p class="eyebrow">Story Lab</p><h1>{{ brand_lab.front_text or manifest.run_name or 'Story panel pending' }}</h1><p class="hero-copy">{{ brand_lab.concept or 'This page is now a neutral story and export staging area for terrain stills, narrative panels, and shareable review material.' }}</p></div></header>
+  <main class="page-shell">
+    <section class="card"><h2>Story Panels</h2><ol class="styled-list">{% for item in brand_lab.story_panels or ['Terrain reveal', 'Key landform callout', 'Shareable still or panel export'] %}<li>{{ item }}</li>{% endfor %}</ol></section>
+    <section class="grid-two"><section class="card"><h2>Taglines</h2><ul class="styled-list">{% for item in brand_lab.taglines or ['Read the ground.', 'See the landform clearly.', 'Terrain made reviewable.'] %}<li>{{ item }}</li>{% endfor %}</ul></section><section class="card"><h2>Art Direction</h2><ul class="styled-list">{% for item in brand_lab.art_direction or ['Dark-field terrain hero renders', 'Emboss-style relief stills', 'Short motion reveal clips'] %}<li>{{ item }}</li>{% endfor %}</ul></section></section>
+    <section class="grid-two"><section class="card"><h2>Score Notes</h2><div class="details-grid"><div><span>Review</span><strong>{{ (brand_lab.score_notes or {}).get('discovery_score', intelligence.discovery_score or 0) }}</strong></div><div><span>Archaeology</span><strong>{{ (brand_lab.score_notes or {}).get('archaeology_score', intelligence.archaeological_signal_score or 0) }}</strong></div><div><span>Terrain Flow</span><strong>{{ (brand_lab.score_notes or {}).get('wildlife_score', intelligence.travel_corridor_strength or 0) }}</strong></div></div></section><section class="card"><h2>Export Handoff</h2><p class="muted">Prototype handoff only. This is now framed as a story/export staging area, not merch or checkout logic.</p><div class="candidate-row"><div><strong>Status</strong><p>{{ (brand_lab.order_handoff or {}).get('status', 'Concept only') }}</p></div></div><div class="candidate-row"><div><strong>Next Step</strong><p>{{ (brand_lab.order_handoff or {}).get('next_step', 'Connect still exports, captions, or presentation assets later.') }}</p></div></div><div class="button-stack"><button class="btn btn-primary" type="button" onclick="alert('Prototype only: attach this later to still export, deck export, or handoff workflows.')">Prepare Export Storyboard</button><a class="btn btn-secondary" href="/runs/{{ run_id }}">Back to Run</a></div></section></section>
+  </main>
+</body>
+</html>
