@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import gc
+import os
 import struct
 import zlib
 from pathlib import Path
@@ -43,6 +45,37 @@ from siteinsight.utils import (
 DEFAULT_REQUEST_GRID = 896
 DEFAULT_WORKING_GRID = 768
 DEFAULT_BROWSER_GRID = 896
+
+# Render Starter has a 512MB memory ceiling. Local desktop runs keep the original
+# quality path; Render gets a smaller public-proof path so /analyze survives.
+RENDER_SAFE_REQUEST_GRID_CAP = 448
+RENDER_SAFE_WORKING_GRID_CAP = 384
+RENDER_SAFE_BROWSER_GRID_CAP = 384
+RENDER_SAFE_VIEWER_JSON_CAP = 320
+RENDER_SAFE_LAYER_JSON_CAP = 320
+
+
+def _monahinga_render_safe_mode() -> bool:
+    value = (os.environ.get("MONAHINGA_RENDER_SAFE") or "").strip().lower()
+    if value in {"1", "true", "yes", "on"}:
+        return True
+    if value in {"0", "false", "no", "off"}:
+        return False
+    return any(os.environ.get(name) for name in (
+        "RENDER",
+        "RENDER_SERVICE_ID",
+        "RENDER_EXTERNAL_HOSTNAME",
+        "RENDER_EXTERNAL_URL",
+        "RENDER_INSTANCE_ID",
+    ))
+
+
+def _render_cap_grid(value: int, cap: int) -> int:
+    value = max(64, int(value or 0))
+    if _monahinga_render_safe_mode():
+        return min(value, int(cap))
+    return value
+
 
 
 def _bbox_size_m(bbox: tuple[float, float, float, float]) -> tuple[float, float]:
@@ -1498,16 +1531,16 @@ def _build_viewer_layers(surface, derivatives: dict[str, Any], intelligence: dic
             "discovery": "Combined terrain-priority layer for fast field review."
         },
         "layers": {
-            "elevation": _downsample_matrix_for_viewer(elevation, 512).round(5).tolist(),
-            "hillshade": _downsample_matrix_for_viewer(hillshade, 512).round(5).tolist(),
-            "slope": _downsample_matrix_for_viewer(slope, 512).round(5).tolist(),
-            "local_relief": _downsample_matrix_for_viewer(multi_scale_lrm, 512).round(5).tolist(),
-            "openness": _downsample_matrix_for_viewer(openness_pos, 512).round(5).tolist(),
-            "openness_negative": _downsample_matrix_for_viewer(openness_neg, 512).round(5).tolist(),
-            "srv": _downsample_matrix_for_viewer(srv, 512).round(5).tolist(),
-            "archaeology": _downsample_matrix_for_viewer(archaeology_layer, 512).round(5).tolist(),
-            "discovery": _downsample_matrix_for_viewer(discovery, 512).round(5).tolist(),
-            "terrain_texture": _downsample_matrix_for_viewer(terrain_texture, 512).round(5).tolist(),
+            "elevation": _downsample_matrix_for_viewer(elevation, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "hillshade": _downsample_matrix_for_viewer(hillshade, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "slope": _downsample_matrix_for_viewer(slope, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "local_relief": _downsample_matrix_for_viewer(multi_scale_lrm, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "openness": _downsample_matrix_for_viewer(openness_pos, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "openness_negative": _downsample_matrix_for_viewer(openness_neg, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "srv": _downsample_matrix_for_viewer(srv, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "archaeology": _downsample_matrix_for_viewer(archaeology_layer, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "discovery": _downsample_matrix_for_viewer(discovery, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "terrain_texture": _downsample_matrix_for_viewer(terrain_texture, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
         },
     }
 
@@ -1584,12 +1617,16 @@ def run_analysis(bbox: tuple[float, float, float, float], run_name: str, persona
     bbox_width_m, bbox_height_m = _bbox_size_m(bbox)
 
     candidate_providers = list_candidate_providers(bbox=bbox, provider_preference=dem_source, data_dir=DATA_DIR)
+    if _monahinga_render_safe_mode() and len(candidate_providers) > 1:
+        # Render's Starter instance is memory-limited. Avoid holding multiple DEM
+        # candidate rasters in memory during public proof runs.
+        candidate_providers = candidate_providers[:1]
     candidates: list[SourceCandidate] = []
     fetch_failures: list[dict[str, str]] = []
     for provider_name in candidate_providers:
         try:
-            candidate_request_grid = _provider_request_grid(bbox, provider_name)
-            candidate_working_grid = _provider_working_grid(bbox, provider_name)
+            candidate_request_grid = _render_cap_grid(_provider_request_grid(bbox, provider_name), RENDER_SAFE_REQUEST_GRID_CAP)
+            candidate_working_grid = _render_cap_grid(_provider_working_grid(bbox, provider_name), RENDER_SAFE_WORKING_GRID_CAP)
             dem_bytes, provider_used = fetch_dem_for_provider(bbox=bbox, size=candidate_request_grid, provider=provider_name, data_dir=DATA_DIR)
             dem_raw, dem_meta = _read_dem_from_geotiff_bytes(dem_bytes)
             dem_resampled = _resample_to_grid(dem_raw, candidate_working_grid)
@@ -1633,9 +1670,9 @@ def run_analysis(bbox: tuple[float, float, float, float], run_name: str, persona
         if best_usgs.arbitration_score >= chosen_candidate.arbitration_score - 0.08:
             chosen_candidate = best_usgs
     provider_used = chosen_candidate.provider
-    working_grid = _provider_working_grid(bbox, provider_used)
-    request_grid = _provider_request_grid(bbox, provider_used)
-    browser_grid = _provider_browser_grid(bbox, provider_used)
+    working_grid = _render_cap_grid(_provider_working_grid(bbox, provider_used), RENDER_SAFE_WORKING_GRID_CAP)
+    request_grid = _render_cap_grid(_provider_request_grid(bbox, provider_used), RENDER_SAFE_REQUEST_GRID_CAP)
+    browser_grid = _render_cap_grid(_provider_browser_grid(bbox, provider_used), RENDER_SAFE_BROWSER_GRID_CAP)
     source = TerrainSource(
         raw_dem=chosen_candidate.raw_dem,
         provider=chosen_candidate.provider,
@@ -1652,6 +1689,11 @@ def run_analysis(bbox: tuple[float, float, float, float], run_name: str, persona
     qc0 = chosen_candidate.qc
     source_arbitration = build_arbitration_summary(candidates, chosen_candidate)
     source_arbitration['normalization_summary'] = chosen_candidate.meta.get('normalization_summary', normalization_summary)
+    if _monahinga_render_safe_mode():
+        # Release non-chosen candidate arrays as early as possible on Render.
+        candidates = [chosen_candidate]
+        ordered_candidates = [chosen_candidate]
+        gc.collect()
     if fetch_failures:
         source_arbitration["fetch_failures"] = fetch_failures
     surface = condition_surface(source, qc0)
@@ -1719,7 +1761,8 @@ def run_analysis(bbox: tuple[float, float, float, float], run_name: str, persona
         "terrain_confidence": terrain_qc.get("terrain_confidence", 0.0),
         "terrain_class": terrain_qc.get("terrain_class", "unknown"),
         "browser_grid": browser_grid,
-        "inspection_mode": "high_detail" if browser_grid >= 1152 else ("balanced_detail" if browser_grid >= 896 else "regional_context"),
+        "inspection_mode": "render_safe_public_proof" if _monahinga_render_safe_mode() else ("high_detail" if browser_grid >= 1152 else ("balanced_detail" if browser_grid >= 896 else "regional_context")),
+        "render_safe_mode": bool(_monahinga_render_safe_mode()),
         "surface_trust": terrain_qc.get("surface_trust", "mixed_surface"),
         "surface_trust_note": terrain_qc.get("surface_trust_note", "Treat this surface as contextual terrain evidence, not automatic proof."),
         "artifact_truth": {
@@ -1789,9 +1832,19 @@ def run_analysis(bbox: tuple[float, float, float, float], run_name: str, persona
     save_json(run_dir / "terrain_graph.json", terrain_graph)
     save_json(run_dir / "source_arbitration.json", source_arbitration)
     save_json(run_dir / "intelligence.json", intelligence)
-    save_json(run_dir / "heightmap.json", heightmap)
-    save_json(run_dir / "heightmap_viewer.json", _build_fast_heightmap_payload(heightmap, max_dim=448))
-    save_json(run_dir / "viewer_layers.json", viewer_layers)
+    if _monahinga_render_safe_mode():
+        compact_heightmap = _build_fast_heightmap_payload(heightmap, max_dim=RENDER_SAFE_VIEWER_JSON_CAP)
+        compact_heightmap["render_safe_mode"] = True
+        compact_heightmap["render_safe_note"] = "Render Starter memory guard: compact JSON payload; local desktop quality path remains uncapped."
+        save_json(run_dir / "heightmap.json", compact_heightmap)
+        save_json(run_dir / "heightmap_viewer.json", compact_heightmap)
+        save_json(run_dir / "viewer_layers.json", viewer_layers)
+        del compact_heightmap
+        gc.collect()
+    else:
+        save_json(run_dir / "heightmap.json", heightmap)
+        save_json(run_dir / "heightmap_viewer.json", _build_fast_heightmap_payload(heightmap, max_dim=448))
+        save_json(run_dir / "viewer_layers.json", viewer_layers)
     save_json(run_dir / "dem_metadata.json", {
         "provider": provider_used,
         "status": "complete",
