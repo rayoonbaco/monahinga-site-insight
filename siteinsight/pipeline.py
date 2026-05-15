@@ -1035,7 +1035,9 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
         <div class="controls">
           <select id="texture">
             <option value="terrain_texture">Terrain Texture</option>
-            <option value="science_composite">SCIENCE COMPOSITE - Layer Fusion</option>
+            <option value="crystal_clarity">RELIEF INSPECT - Crisp Terrain</option>
+            <option value="microrelief_best">MICRORELIEF - Best Detail</option>
+            <option value="science_composite">ARCHAEOLOGY FUSION - Signals</option>
             <option value="hillshade">Hillshade</option>
             <option value="heightmap">Heightmap</option>
             <option value="slope">Slope</option>
@@ -1065,7 +1067,7 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
       <div class="info-panel">
         <div class="panel-title">Scientific 3D Terrain Viewer</div>
         <div class="panel-copy">
-          Use texture and exaggeration presets to read the landscape quickly. Terrain Texture is the field-first composite; Hillshade and Local Relief expose landform structure; Discovery and Archaeology remain interpretation signals, not confirmed sites.
+          Use texture and exaggeration presets to read the landscape quickly. Terrain Texture is the field-first composite. Relief Inspect is the balanced terrain-reading mode. Microrelief is the strongest subtle-detail mode. Archaeology Fusion highlights review signals, not confirmed sites.
         </div>
         <div class="legend-grid">
           <div class="legend-card">
@@ -1105,6 +1107,8 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
     const textureMap = {
       heightmap: './heightmap.png',
       terrain_texture: './Terrain_Texture.png',
+      microrelief_best: './Microrelief_Best.browser-generated',
+      crystal_clarity: './Crystal_Clarity.browser-generated',
       science_composite: './Science_Composite.browser-generated',
       hillshade: './Hillshade.png',
       slope: './Slope.png',
@@ -1348,12 +1352,266 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
             texture.wrapS = THREE.ClampToEdgeWrapping;
             texture.wrapT = THREE.ClampToEdgeWrapping;
             texture.generateMipmaps = true;
-            texture.minFilter = sharp ? THREE.LinearMipmapLinearFilter : THREE.LinearMipmapLinearFilter;
-            texture.magFilter = sharp ? THREE.LinearFilter : THREE.LinearFilter;
+            texture.minFilter = THREE.LinearMipmapLinearFilter;
+            texture.magFilter = THREE.LinearFilter;
             if (renderer.capabilities && renderer.capabilities.getMaxAnisotropy) {
-              texture.anisotropy = Math.min(16, renderer.capabilities.getMaxAnisotropy());
+              texture.anisotropy = Math.min(12, renderer.capabilities.getMaxAnisotropy());
             }
             texture.colorSpace = grayscale ? THREE.NoColorSpace : (THREE.SRGBColorSpace || undefined);
+            texture.needsUpdate = true;
+            return texture;
+          }
+
+          function makePublicationReliefTexture(mode = 'relief') {
+            // Research-grade browser visualization:
+            // multi-scale local relief + restrained multi-direction hillshade.
+            // This makes existing DEM detail more readable without inventing data.
+            const matrix = Array.isArray(heightmap.geometry_values) ? heightmap.geometry_values : values;
+            const rows = sourceRows;
+            const cols = sourceCols;
+            const canvasMax = heightmap.local_science_lab_mode ? 1536 : 640;
+            const w = Math.max(64, Math.min(canvasMax, cols));
+            const h = Math.max(64, Math.min(canvasMax, rows));
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            const image = ctx.createImageData(w, h);
+            const data = image.data;
+
+            function rawAt(r, c) {
+              const rr = Math.max(0, Math.min(rows - 1, r));
+              const cc = Math.max(0, Math.min(cols - 1, c));
+              const row = matrix[rr] || [];
+              const v = Number(row[cc] || 0);
+              return Number.isFinite(v) ? v : 0;
+            }
+
+            // Resample height to the canvas grid once.
+            const grid = new Float64Array(w * h);
+            const sample = [];
+            for (let y = 0; y < h; y++) {
+              const r = Math.round((y / Math.max(h - 1, 1)) * (rows - 1));
+              for (let x = 0; x < w; x++) {
+                const c = Math.round((x / Math.max(w - 1, 1)) * (cols - 1));
+                const v = rawAt(r, c);
+                grid[y * w + x] = v;
+                if ((x % 5 === 0) && (y % 5 === 0)) sample.push(v);
+              }
+            }
+
+            function deTerraceGrid(sourceGrid) {
+              // Edge-preserving smoothing: suppress raster stair-steps without erasing real breaks.
+              // It blends only neighbors whose elevation is close to the center value.
+              const out = new Float64Array(sourceGrid.length);
+              const passes = heightmap.local_science_lab_mode ? 2 : 1;
+              let current = sourceGrid;
+              let next = out;
+
+              for (let pass = 0; pass < passes; pass++) {
+                for (let yy = 0; yy < h; yy++) {
+                  for (let xx = 0; xx < w; xx++) {
+                    const idx = yy * w + xx;
+                    const center = current[idx];
+                    let weighted = center * 2.4;
+                    let weight = 2.4;
+
+                    for (let dy2 = -1; dy2 <= 1; dy2++) {
+                      for (let dx2 = -1; dx2 <= 1; dx2++) {
+                        if (dx2 === 0 && dy2 === 0) continue;
+                        const nx2 = Math.max(0, Math.min(w - 1, xx + dx2));
+                        const ny2 = Math.max(0, Math.min(h - 1, yy + dy2));
+                        const n = current[ny2 * w + nx2];
+                        const diff = Math.abs(n - center);
+                        const localTolerance = Math.max((sample[Math.floor(sample.length * 0.985)] || center) - (sample[Math.floor(sample.length * 0.015)] || center), 1e-9) * 0.0065;
+                        const keepEdge = Math.max(0.0, 1.0 - diff / Math.max(localTolerance, 1e-9));
+                        const spatial = (dx2 === 0 || dy2 === 0) ? 0.92 : 0.55;
+                        const ww = keepEdge * spatial;
+                        weighted += n * ww;
+                        weight += ww;
+                      }
+                    }
+                    next[idx] = weighted / Math.max(weight, 1e-9);
+                  }
+                }
+                const temp = current;
+                current = next;
+                next = temp;
+              }
+              return current;
+            }
+
+            // Fill sample first so de-terrace has a robust local tolerance range.
+            sample.sort((a, b) => a - b);
+            const deTerraced = deTerraceGrid(grid);
+            for (let i = 0; i < grid.length; i++) grid[i] = deTerraced[i];
+
+            // Rebuild the sample from the de-terraced grid for more stable percentile contrast.
+            sample.length = 0;
+            for (let yy = 0; yy < h; yy += 5) {
+              for (let xx = 0; xx < w; xx += 5) {
+                sample.push(grid[yy * w + xx]);
+              }
+            }
+            sample.sort((a, b) => a - b);
+            const p = (q) => sample[Math.max(0, Math.min(sample.length - 1, Math.floor(q * (sample.length - 1))))] || 0;
+            const lo = p(0.015);
+            const hi = p(0.985);
+            const denom = Math.max(hi - lo, 1e-9);
+
+            // Integral image for fast local means at several radii.
+            const integral = new Float64Array((w + 1) * (h + 1));
+            for (let y = 1; y <= h; y++) {
+              let rowSum = 0;
+              for (let x = 1; x <= w; x++) {
+                rowSum += grid[(y - 1) * w + (x - 1)];
+                integral[y * (w + 1) + x] = integral[(y - 1) * (w + 1) + x] + rowSum;
+              }
+            }
+
+            function boxMean(x, y, radius) {
+              const x0 = Math.max(0, x - radius);
+              const y0 = Math.max(0, y - radius);
+              const x1 = Math.min(w - 1, x + radius);
+              const y1 = Math.min(h - 1, y + radius);
+              const A = integral[y0 * (w + 1) + x0];
+              const B = integral[y0 * (w + 1) + (x1 + 1)];
+              const C = integral[(y1 + 1) * (w + 1) + x0];
+              const D = integral[(y1 + 1) * (w + 1) + (x1 + 1)];
+              const count = Math.max(1, (x1 - x0 + 1) * (y1 - y0 + 1));
+              return (D - B - C + A) / count;
+            }
+
+            function clamp01(x) {
+              return Math.max(0, Math.min(1, x));
+            }
+
+            function contrast(x, mid = 0.5, amount = 1.0) {
+              return clamp01((x - mid) * amount + mid);
+            }
+
+            function smoothTone(x) {
+              x = clamp01(x);
+              return x * x * (3 - 2 * x);
+            }
+
+            const isMicro = mode === 'micro';
+            const isFusion = mode === 'fusion';
+            const lights = [
+              { x: -0.64, y: -0.46, z: 0.62, w: 0.36 },
+              { x:  0.58, y: -0.50, z: 0.64, w: 0.32 },
+              { x: -0.18, y:  0.82, z: 0.54, w: 0.32 },
+            ];
+
+            for (let y = 0; y < h; y++) {
+              for (let x = 0; x < w; x++) {
+                const idxGrid = y * w + x;
+                const center = grid[idxGrid];
+
+                // Wider gradient suppresses raster row/column banding.
+                const span = heightmap.local_science_lab_mode ? 4 : 2;
+                const left = grid[y * w + Math.max(0, x - span)];
+                const right = grid[y * w + Math.min(w - 1, x + span)];
+                const up = grid[Math.max(0, y - span) * w + x];
+                const down = grid[Math.min(h - 1, y + span) * w + x];
+                const dx = (right - left) / denom;
+                const dy = (down - up) / denom;
+
+                let nx = -dx * (isMicro ? 1.38 : 1.18);
+                let ny = -dy * (isMicro ? 1.38 : 1.18);
+                let nz = 1.0;
+                const nLen = Math.max(Math.sqrt(nx * nx + ny * ny + nz * nz), 1e-9);
+                nx /= nLen; ny /= nLen; nz /= nLen;
+
+                let hill = 0;
+                for (const light of lights) {
+                  hill += light.w * Math.max(0, nx * light.x + ny * light.y + nz * light.z);
+                }
+
+                // Multi-scale local relief: small vs medium plus medium vs large.
+                const smallR = heightmap.local_science_lab_mode ? 2 : 1;
+                const medR = heightmap.local_science_lab_mode ? 6 : 4;
+                const largeR = heightmap.local_science_lab_mode ? 16 : 10;
+                const small = boxMean(x, y, smallR);
+                const medium = boxMean(x, y, medR);
+                const large = boxMean(x, y, largeR);
+                const lrmFine = (small - medium) / (denom * 0.022);
+                const lrmBroad = (medium - large) / (denom * 0.045);
+                let microRelief = Math.max(-1, Math.min(1, lrmFine * 0.68 + lrmBroad * 0.32));
+
+                // Edge is deliberately restrained; it should highlight breaks, not rows.
+                const edge = clamp01(Math.sqrt(dx * dx + dy * dy) * (isMicro ? 2.05 : 1.65));
+                const elevationNorm = clamp01((center - lo) / denom);
+
+                if (isFusion) {
+                  let base = 0.42 + (hill - 0.50) * 0.50 + (elevationNorm - 0.50) * 0.07;
+                  base = clamp01(base);
+                  const pos = clamp01(microRelief);
+                  const neg = clamp01(-microRelief);
+                  const ink = edge * 0.10;
+
+                  let rr = base + pos * 0.26 - ink;
+                  let gg = base + pos * 0.10 + neg * 0.08 - ink;
+                  let bb = base + neg * 0.25 - ink * 0.45;
+
+                  rr = smoothTone(contrast(rr, 0.48, 1.08));
+                  gg = smoothTone(contrast(gg, 0.48, 1.04));
+                  bb = smoothTone(contrast(bb, 0.48, 1.08));
+
+                  const idx = idxGrid * 4;
+                  data[idx] = Math.round(255 * rr);
+                  data[idx + 1] = Math.round(255 * gg);
+                  data[idx + 2] = Math.round(255 * bb);
+                  data[idx + 3] = 255;
+                } else {
+                  let tone = isMicro ? 0.40 : 0.42;
+                  tone += (hill - 0.50) * (isMicro ? 0.46 : 0.40);
+                  tone += microRelief * (isMicro ? 0.42 : 0.30);
+                  tone += edge * (isMicro ? 0.055 : 0.045);
+                  tone += (elevationNorm - 0.50) * 0.045;
+                  tone = contrast(tone, 0.48, isMicro ? 1.28 : 1.14);
+                  tone = 0.10 + 0.80 * smoothTone(tone);
+
+                  const v = Math.round(255 * clamp01(tone));
+                  const idx = idxGrid * 4;
+                  data[idx] = v;
+                  data[idx + 1] = v;
+                  data[idx + 2] = v;
+                  data[idx + 3] = 255;
+                }
+              }
+            }
+
+            // Tiny anti-band post-process; keep it subtle so real microrelief stays.
+            const antiBandBlend = isMicro ? 0.16 : 0.20;
+            const original = new Uint8ClampedArray(data);
+            for (let y = 1; y < h - 1; y++) {
+              for (let x = 1; x < w - 1; x++) {
+                const idx = (y * w + x) * 4;
+                for (let ch = 0; ch < 3; ch++) {
+                  const center = original[idx + ch];
+                  const left = original[idx - 4 + ch];
+                  const right = original[idx + 4 + ch];
+                  const up = original[idx - w * 4 + ch];
+                  const down = original[idx + w * 4 + ch];
+                  const neighborMean = (left + right + up + down) * 0.25;
+                  data[idx + ch] = Math.round(center * (1.0 - antiBandBlend) + neighborMean * antiBandBlend);
+                }
+              }
+            }
+
+            ctx.putImageData(image, 0, 0);
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.ClampToEdgeWrapping;
+            texture.wrapT = THREE.ClampToEdgeWrapping;
+            texture.generateMipmaps = false;
+            texture.minFilter = THREE.LinearFilter;
+            texture.magFilter = THREE.LinearFilter;
+            if (renderer.capabilities && renderer.capabilities.getMaxAnisotropy) {
+              texture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+            }
+            texture.colorSpace = THREE.SRGBColorSpace || undefined;
+            texture.needsUpdate = true;
             return texture;
           }
 
@@ -1367,6 +1625,48 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
             const asset = textureMap[name] || textureMap.hillshade;
             releaseActiveTextures();
             try {
+              if (name === 'microrelief_best') {
+                const reliefTexture = makePublicationReliefTexture('micro');
+                activeTextures.push(reliefTexture);
+                material.map = reliefTexture;
+                material.bumpMap = null;
+                material.bumpScale = 0.0;
+                material.roughness = 0.70;
+                material.emissiveIntensity = 0.0;
+                material.needsUpdate = true;
+                const lane = heightmap.local_science_lab_mode ? 'Local Science Lab' : (heightmap.render_safe_mode ? 'Render Safe' : 'Local Standard');
+                note.textContent = `MICRORELIEF active. De-terraced multi-scale local relief for best subtle-detail reading. Lane ${lane}. Source ${sourceCols} x ${sourceRows}. Mesh ${meshCols} x ${meshRows}.`;
+                return;
+              }
+
+              if (name === 'crystal_clarity' || name === 'relief_inspect') {
+                const reliefTexture = makePublicationReliefTexture('relief');
+                activeTextures.push(reliefTexture);
+                material.map = reliefTexture;
+                material.bumpMap = null;
+                material.bumpScale = 0.0;
+                material.roughness = 0.72;
+                material.emissiveIntensity = 0.0;
+                material.needsUpdate = true;
+                const lane = heightmap.local_science_lab_mode ? 'Local Science Lab' : (heightmap.render_safe_mode ? 'Render Safe' : 'Local Standard');
+                note.textContent = `RELIEF INSPECT active. Balanced de-terraced terrain reading from height data. Lane ${lane}. Source ${sourceCols} x ${sourceRows}. Mesh ${meshCols} x ${meshRows}.`;
+                return;
+              }
+
+              if (name === 'science_composite' || name === 'archaeology_fusion') {
+                const fusionTexture = makePublicationReliefTexture('fusion');
+                activeTextures.push(fusionTexture);
+                material.map = fusionTexture;
+                material.bumpMap = null;
+                material.bumpScale = 0.0;
+                material.roughness = 0.70;
+                material.emissiveIntensity = 0.0;
+                material.needsUpdate = true;
+                const lane = heightmap.local_science_lab_mode ? 'Local Science Lab' : (heightmap.render_safe_mode ? 'Render Safe' : 'Local Standard');
+                note.textContent = `ARCHAEOLOGY FUSION active. Warm/cool multi-scale relief signal for review, not confirmation. Lane ${lane}. Source ${sourceCols} x ${sourceRows}. Mesh ${meshCols} x ${meshRows}.`;
+                return;
+              }
+
               const [colorTexture, detailTexture] = await Promise.all([
                 loadTexture(asset, { grayscale: false, sharp: true }),
                 embedMode ? Promise.resolve(null) : loadTexture('./LRM_Edges.png', { grayscale: true, sharp: true })
@@ -1374,7 +1674,9 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
               activeTextures.push(colorTexture, detailTexture);
               material.map = colorTexture;
               material.bumpMap = embedMode ? null : detailTexture;
-              material.bumpScale = embedMode ? 0.0 : Math.max(0.06, 0.14 * effectiveViewerVerticalScale);
+              material.bumpScale = embedMode ? 0.0 : Math.max(0.018, 0.040 * effectiveViewerVerticalScale);
+              material.roughness = 0.78;
+              material.emissiveIntensity = 0.02;
               material.needsUpdate = true;
             } catch (e) {
               material.map = null;
