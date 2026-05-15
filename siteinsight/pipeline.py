@@ -54,6 +54,13 @@ RENDER_SAFE_BROWSER_GRID_CAP = 384
 RENDER_SAFE_VIEWER_JSON_CAP = 320
 RENDER_SAFE_LAYER_JSON_CAP = 320
 
+# Local-only science lab lane. Render never uses this lane.
+LOCAL_SCIENCE_REQUEST_GRID_CAP = 1280
+LOCAL_SCIENCE_WORKING_GRID_CAP = 1024
+LOCAL_SCIENCE_BROWSER_GRID_CAP = 1280
+LOCAL_SCIENCE_VIEWER_JSON_CAP = 768
+LOCAL_SCIENCE_LAYER_JSON_CAP = 768
+
 
 def _monahinga_render_safe_mode() -> bool:
     value = (os.environ.get("MONAHINGA_RENDER_SAFE") or "").strip().lower()
@@ -70,11 +77,31 @@ def _monahinga_render_safe_mode() -> bool:
     ))
 
 
+def _monahinga_local_science_lab_mode() -> bool:
+    value = (os.environ.get("MONAHINGA_LOCAL_SCIENCE_LAB") or "").strip().lower()
+    return value in {"1", "true", "yes", "on"} and not _monahinga_render_safe_mode()
+
+
 def _render_cap_grid(value: int, cap: int) -> int:
     value = max(64, int(value or 0))
     if _monahinga_render_safe_mode():
         return min(value, int(cap))
     return value
+
+
+def _lab_cap_grid(value: int, cap: int) -> int:
+    value = max(64, int(value or 0))
+    if _monahinga_local_science_lab_mode():
+        return max(value, int(cap))
+    return value
+
+
+def _active_layer_json_cap(default_cap: int) -> int:
+    if _monahinga_render_safe_mode():
+        return RENDER_SAFE_LAYER_JSON_CAP
+    if _monahinga_local_science_lab_mode():
+        return LOCAL_SCIENCE_LAYER_JSON_CAP
+    return int(default_cap)
 
 
 
@@ -1008,6 +1035,7 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
         <div class="controls">
           <select id="texture">
             <option value="terrain_texture">Terrain Texture</option>
+            <option value="science_composite">SCIENCE COMPOSITE - Layer Fusion</option>
             <option value="hillshade">Hillshade</option>
             <option value="heightmap">Heightmap</option>
             <option value="slope">Slope</option>
@@ -1077,6 +1105,7 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
     const textureMap = {
       heightmap: './heightmap.png',
       terrain_texture: './Terrain_Texture.png',
+      science_composite: './Science_Composite.browser-generated',
       hillshade: './Hillshade.png',
       slope: './Slope.png',
       lrm: './LRM.png',
@@ -1111,7 +1140,10 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
           const terrainQuality = heightmap.terrain_quality || 'unknown';
           const geometryMode = heightmap.geometry_mode || 'default';
           const sourceVerts = sourceRows * sourceCols;
-          const desiredMeshMax = embedMode ? 280 : (scaleMode === 'inspection_focus' ? 420 : (scaleMode === 'landscape_context' ? 448 : 480));
+          const localScienceLabActive = Boolean(heightmap.local_science_lab_mode);
+          const standardMeshMax = scaleMode === 'inspection_focus' ? 420 : (scaleMode === 'landscape_context' ? 448 : 480);
+          const scienceLabMeshMax = scaleMode === 'inspection_focus' ? 640 : (scaleMode === 'landscape_context' ? 672 : 704);
+          const desiredMeshMax = embedMode ? 280 : (localScienceLabActive ? scienceLabMeshMax : standardMeshMax);
           const heavyRun = sourceVerts > desiredMeshMax * desiredMeshMax;
           function resampleMatrix(matrix, targetRows, targetCols) {
             const out = [];
@@ -1377,7 +1409,9 @@ def _write_viewer3d_html(run_dir: Path, run_id: str) -> None:
           function updateExaggerationLabel(sliderValue) {
             const multiplier = Number(sliderValue) / 100;
             exaggerationValue.textContent = `${multiplier.toFixed(2)}x`;
-            note.textContent = `Run-local viewer artifact loaded. Source ${sourceCols} x ${sourceRows}. Mesh ${meshCols} x ${meshRows}. Terrain ${terrainQuality}. Geometry ${geometryMode}. Base scale ${effectiveViewerVerticalScale.toFixed(2)}. Edge blend on. ${embedMode ? 'Embedded stability mode on.' : 'High-detail viewer on.'} Exaggeration ${multiplier.toFixed(2)}x.`;
+            const fidelityLane = heightmap.render_safe_mode ? 'Render Safe' : (heightmap.local_science_lab_mode ? 'Local Science Lab' : 'Local Standard');
+          const sourceMeshRatio = (sourceCols && meshCols) ? (sourceCols / meshCols).toFixed(2) : 'n/a';
+          note.textContent = `Dr. Source Fusion active. Lane ${fidelityLane}. Source ${sourceCols} x ${sourceRows}. Mesh ${meshCols} x ${meshRows}. Ratio ${sourceMeshRatio}:1. Desired mesh cap ${desiredMeshMax}. Sweet spot polish active. Terrain ${(typeof terrainStrength !== 'undefined' ? terrainStrength : (heightmap.terrain_strength || heightmap.terrainStrength || 'strong'))}. Geometry ${geometryMode}. Base scale ${effectiveViewerVerticalScale.toFixed(2)}. High-detail viewer on. Exaggeration ${(typeof currentExaggeration !== 'undefined' ? currentExaggeration : (Number(heightmap.exaggeration || heightmap.vertical_exaggeration || heightmap.verticalExaggeration || 1.0))).toFixed(2)}x.`;
             applyExaggeration(multiplier * effectiveViewerVerticalScale);
           }
           exaggerationSlider.addEventListener('input', (e) => {
@@ -1531,16 +1565,16 @@ def _build_viewer_layers(surface, derivatives: dict[str, Any], intelligence: dic
             "discovery": "Combined terrain-priority layer for fast field review."
         },
         "layers": {
-            "elevation": _downsample_matrix_for_viewer(elevation, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "hillshade": _downsample_matrix_for_viewer(hillshade, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "slope": _downsample_matrix_for_viewer(slope, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "local_relief": _downsample_matrix_for_viewer(multi_scale_lrm, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "openness": _downsample_matrix_for_viewer(openness_pos, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "openness_negative": _downsample_matrix_for_viewer(openness_neg, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "srv": _downsample_matrix_for_viewer(srv, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "archaeology": _downsample_matrix_for_viewer(archaeology_layer, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "discovery": _downsample_matrix_for_viewer(discovery, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
-            "terrain_texture": _downsample_matrix_for_viewer(terrain_texture, _render_cap_grid(512, RENDER_SAFE_LAYER_JSON_CAP)).round(5).tolist(),
+            "elevation": _downsample_matrix_for_viewer(elevation, _active_layer_json_cap(512)).round(5).tolist(),
+            "hillshade": _downsample_matrix_for_viewer(hillshade, _active_layer_json_cap(512)).round(5).tolist(),
+            "slope": _downsample_matrix_for_viewer(slope, _active_layer_json_cap(512)).round(5).tolist(),
+            "local_relief": _downsample_matrix_for_viewer(multi_scale_lrm, _active_layer_json_cap(512)).round(5).tolist(),
+            "openness": _downsample_matrix_for_viewer(openness_pos, _active_layer_json_cap(512)).round(5).tolist(),
+            "openness_negative": _downsample_matrix_for_viewer(openness_neg, _active_layer_json_cap(512)).round(5).tolist(),
+            "srv": _downsample_matrix_for_viewer(srv, _active_layer_json_cap(512)).round(5).tolist(),
+            "archaeology": _downsample_matrix_for_viewer(archaeology_layer, _active_layer_json_cap(512)).round(5).tolist(),
+            "discovery": _downsample_matrix_for_viewer(discovery, _active_layer_json_cap(512)).round(5).tolist(),
+            "terrain_texture": _downsample_matrix_for_viewer(terrain_texture, _active_layer_json_cap(512)).round(5).tolist(),
         },
     }
 
@@ -1673,6 +1707,10 @@ def run_analysis(bbox: tuple[float, float, float, float], run_name: str, persona
     working_grid = _render_cap_grid(_provider_working_grid(bbox, provider_used), RENDER_SAFE_WORKING_GRID_CAP)
     request_grid = _render_cap_grid(_provider_request_grid(bbox, provider_used), RENDER_SAFE_REQUEST_GRID_CAP)
     browser_grid = _render_cap_grid(_provider_browser_grid(bbox, provider_used), RENDER_SAFE_BROWSER_GRID_CAP)
+    if _monahinga_local_science_lab_mode():
+        working_grid = min(_lab_cap_grid(working_grid, LOCAL_SCIENCE_WORKING_GRID_CAP), LOCAL_SCIENCE_WORKING_GRID_CAP)
+        request_grid = min(_lab_cap_grid(request_grid, LOCAL_SCIENCE_REQUEST_GRID_CAP), LOCAL_SCIENCE_REQUEST_GRID_CAP)
+        browser_grid = min(_lab_cap_grid(browser_grid, LOCAL_SCIENCE_BROWSER_GRID_CAP), LOCAL_SCIENCE_BROWSER_GRID_CAP)
     source = TerrainSource(
         raw_dem=chosen_candidate.raw_dem,
         provider=chosen_candidate.provider,
@@ -1761,8 +1799,15 @@ def run_analysis(bbox: tuple[float, float, float, float], run_name: str, persona
         "terrain_confidence": terrain_qc.get("terrain_confidence", 0.0),
         "terrain_class": terrain_qc.get("terrain_class", "unknown"),
         "browser_grid": browser_grid,
-        "inspection_mode": "render_safe_public_proof" if _monahinga_render_safe_mode() else ("high_detail" if browser_grid >= 1152 else ("balanced_detail" if browser_grid >= 896 else "regional_context")),
+        "inspection_mode": "render_safe_public_proof" if _monahinga_render_safe_mode() else ("local_science_lab_high_detail" if _monahinga_local_science_lab_mode() else ("high_detail" if browser_grid >= 1152 else ("balanced_detail" if browser_grid >= 896 else "regional_context"))),
         "render_safe_mode": bool(_monahinga_render_safe_mode()),
+        "local_science_lab_mode": bool(_monahinga_local_science_lab_mode()),
+        "terrain_fidelity_specialist": {
+            "role": "Dr. Source Fusion & Terrain Fidelity Specialist",
+            "source_mesh_policy": "Balance source grid, working grid, viewer mesh, texture blend, and memory lane each run.",
+            "render_lane": "stability first",
+            "local_lab_lane": "fidelity first"
+        },
         "surface_trust": terrain_qc.get("surface_trust", "mixed_surface"),
         "surface_trust_note": terrain_qc.get("surface_trust_note", "Treat this surface as contextual terrain evidence, not automatic proof."),
         "artifact_truth": {
@@ -1840,6 +1885,15 @@ def run_analysis(bbox: tuple[float, float, float, float], run_name: str, persona
         save_json(run_dir / "heightmap_viewer.json", compact_heightmap)
         save_json(run_dir / "viewer_layers.json", viewer_layers)
         del compact_heightmap
+        gc.collect()
+    elif _monahinga_local_science_lab_mode():
+        lab_heightmap = _build_fast_heightmap_payload(heightmap, max_dim=LOCAL_SCIENCE_VIEWER_JSON_CAP)
+        lab_heightmap["local_science_lab_mode"] = True
+        lab_heightmap["science_lab_note"] = "Local high-detail science lab mode: larger viewer payload for close inspection. Not used on Render."
+        save_json(run_dir / "heightmap.json", lab_heightmap)
+        save_json(run_dir / "heightmap_viewer.json", lab_heightmap)
+        save_json(run_dir / "viewer_layers.json", viewer_layers)
+        del lab_heightmap
         gc.collect()
     else:
         save_json(run_dir / "heightmap.json", heightmap)
